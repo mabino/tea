@@ -1,0 +1,173 @@
+# Tiny Email App (TEA)
+
+Tiny Email App (TEA) is a containerised email relay gateway that combines a FastAPI service, Playwright-ready Chromium runtime, and a noVNC-accessible desktop session. TEA makes it easy to broker OAuth-authenticated outbound and inbound email flows for programmatic clients while still providing browser-based remediation when interactive logins are required.
+
+## Features
+
+- OAuth-aware health reporting with browser intervention signalling
+- Unauthenticated relay endpoints for sending and (optionally) listing messages
+- Configurable dry-run mode and rich environment-driven settings
+- Playwright-enabled Chromium runtime exposed through noVNC for remote access
+- File-backed token storage via bind mounts plus offline-friendly mock adapters
+- Comprehensive test suite with GitHub Actions CI workflow
+
+## Getting Started
+
+```bash
+# Build and run with docker-compose
+TEA_OAUTH_CLIENT_ID=your-client-id \
+TEA_OAUTH_TOKEN_ENDPOINT=https://provider.example.com/oauth/token \
+TEA_SMTP_HOST=smtp.provider.example.com \
+TEA_IMAP_HOST=imap.provider.example.com \
+docker compose up --build
+```
+
+Once running:
+
+- FastAPI service: http://localhost:8000
+- OpenAPI docs: http://localhost:8000/docs
+- noVNC desktop: http://localhost:6080 (password optional)
+
+## Configuration Reference
+
+| Environment Variable | Default | Description |
+| --- | --- | --- |
+| `TEA_APP_HOST` | `0.0.0.0` | FastAPI listen address inside the container. |
+| `TEA_APP_PORT` | `8000` | FastAPI listen port inside the container. |
+| `TEA_DEBUG` | `false` | Enable verbose JSON logs when `true`. |
+| `TEA_DRY_RUN` | `false` | Skip outbound email delivery while still accepting requests. |
+| `TEA_NOVNC_ENABLED` | `true` | Expose the noVNC desktop session. |
+| `TEA_NOVNC_PASSWORD_ENABLED` | `false` | Require a password for noVNC when `true`. |
+| `TEA_NOVNC_PASSWORD` | _empty_ | Password used when `TEA_NOVNC_PASSWORD_ENABLED=true`. |
+| `TEA_RELAY_SEND_ENABLED` | `true` | Allow unauthenticated email submissions. |
+| `TEA_RELAY_QUERY_ENABLED` | `false` | Allow unauthenticated inbox queries. |
+| `TEA_MOCK_MODE` | `false` | Use in-memory token store and stub transports. |
+| `TEA_SECRET_STORE_PATH` | `/secrets/tokens.json` | Location of the persisted token bundle. |
+| `TEA_OAUTH_CLIENT_ID` | _empty_ | OAuth client identifier. |
+| `TEA_OAUTH_CLIENT_SECRET` | _empty_ | OAuth client secret. |
+| `TEA_OAUTH_TENANT` | _empty_ | Tenant, domain, or organisation hint for the provider. |
+| `TEA_OAUTH_SCOPES` | _empty_ | Space-separated scopes requested during auth. |
+| `TEA_OAUTH_AUTH_ENDPOINT` | _empty_ | Authorization endpoint for user sign-in. |
+| `TEA_OAUTH_TOKEN_ENDPOINT` | _empty_ | Token endpoint used for refresh/exchange. |
+| `TEA_OAUTH_REDIRECT_URI` | _empty_ | Redirect URI registered with the provider. |
+| `TEA_OAUTH_REFRESH_TOKEN` | _empty_ | Seed refresh token written to the token store. |
+| `TEA_OAUTH_ACCESS_TOKEN` | _empty_ | Seed access token written to the token store. |
+| `TEA_SMTP_HOST` | `smtp.example.com` | SMTP host used for outbound email. |
+| `TEA_SMTP_PORT` | `587` | SMTP port used for outbound email. |
+| `TEA_SMTP_USE_TLS` | `true` | Enable STARTTLS for SMTP connection. |
+| `TEA_IMAP_HOST` | `imap.example.com` | IMAP host used for inbox polling. |
+| `TEA_IMAP_PORT` | `993` | IMAP port used for inbox polling. |
+| `TEA_IMAP_USE_SSL` | `true` | Enable SSL/TLS for IMAP connection. |
+| `TEA_HEALTH_STATUS_CACHE_TTL` | `30` | Seconds to cache health snapshots. |
+| `NOVNC_PORT` | `6080` | External port exposed for noVNC websockify. |
+
+### Chromium and Playwright
+
+The container installs Playwright and Chromium during build time. Additional Playwright runtime flags can be supplied via command arguments when invoking the service, e.g. `docker compose run tea python -m playwright codegen ...`.
+
+## Example Provider Configurations
+
+Every provider expects you to register an OAuth client before TEA can authenticate on your behalf. The general flow is:
+
+- Create a developer project in the provider portal.
+- Enable IMAP/SMTP (and, when asked, add delegated mail scopes).
+- Register an OAuth application, capture the client ID and client secret, and allow the refresh-token grant.
+- Set the redirect URI to something you control (TEA does not host an OAuth callback; when you need to complete a sign-in flow you can use the bundled noVNC browser and paste the resulting code or token into the mounted secret store).
+
+Use the provider-specific notes below to gather the exact values to place in your environment.
+
+### Gmail / Google Workspace
+
+1. Visit the [Google Cloud Console](https://console.cloud.google.com/), create a project, and enable the **Gmail API**.
+2. Configure the OAuth consent screen (External works for testing; add the Gmail scopes you plan to request).
+3. Create OAuth credentials of type **Desktop app** (simplest) or **Web application**. Record the `Client ID` and `Client secret`.
+4. If you choose the Web application type, add a redirect URI such as `https://developers.google.com/oauthplayground`. For desktop clients Google handles the redirect automatically.
+5. In the Google Workspace account, ensure IMAP is enabled for the mailbox you will automate.
+
+```bash
+export TEA_OAUTH_CLIENT_ID="your-google-client-id"
+export TEA_OAUTH_CLIENT_SECRET="your-google-client-secret"
+export TEA_OAUTH_AUTH_ENDPOINT="https://accounts.google.com/o/oauth2/v2/auth"
+export TEA_OAUTH_TOKEN_ENDPOINT="https://oauth2.googleapis.com/token"
+export TEA_OAUTH_SCOPES="https://mail.google.com/"
+export TEA_SMTP_HOST="smtp.gmail.com"
+export TEA_IMAP_HOST="imap.gmail.com"
+docker compose up --build
+```
+
+### Microsoft 365 / Outlook
+
+1. Open the [Azure Portal](https://portal.azure.com/), navigate to **Azure Active Directory → App registrations**, and create a new registration for TEA.
+2. Choose the correct tenant scope (`Accounts in this organizational directory only` or `Multitenant`) and copy the generated **Application (client) ID**.
+3. Under **Authentication**, add a redirect URI for public clients, e.g. `https://login.microsoftonline.com/common/oauth2/nativeclient`, and enable the **Allow public client flows** toggle if present.
+4. Create a **Client secret** (Certificates & secrets) and record the value before leaving the blade.
+5. Under **API permissions**, add the delegated permissions `SMTP.Send` and `IMAP.AccessAsUser.All`, then grant admin consent so the scopes can be used without additional prompts.
+6. Make sure the target mailbox has IMAP enabled in Exchange Online and modern auth is allowed for SMTP (it is by default in M365 tenants).
+
+```bash
+export TEA_OAUTH_CLIENT_ID="your-azure-app-id"
+export TEA_OAUTH_CLIENT_SECRET="your-azure-client-secret"
+export TEA_OAUTH_TENANT="common"
+export TEA_OAUTH_AUTH_ENDPOINT="https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+export TEA_OAUTH_TOKEN_ENDPOINT="https://login.microsoftonline.com/common/oauth2/v2.0/token"
+export TEA_OAUTH_SCOPES="https://outlook.office.com/SMTP.Send https://outlook.office.com/IMAP.AccessAsUser.All"
+export TEA_SMTP_HOST="smtp.office365.com"
+export TEA_IMAP_HOST="outlook.office365.com"
+docker compose up --build
+```
+
+### Yahoo Mail
+
+1. Log in to the [Yahoo Developer Network](https://developer.yahoo.com/apps/) and create a new **Yahoo App**.
+2. Choose the **Web application** flavour, add the optional company/project details, then enable the **Mail** API scope (`Read/Write`) to generate delegated access.
+3. Provide a redirect URI; Yahoo accepts `oob` (out-of-band) or a custom HTTPS URI. Record the `Client ID` and `Client Secret` once the app is created.
+4. In the Yahoo mailbox, confirm that access from third-party apps is enabled (Account Security → Allow apps that use OAuth).
+
+```bash
+export TEA_OAUTH_CLIENT_ID="your-yahoo-client-id"
+export TEA_OAUTH_CLIENT_SECRET="your-yahoo-client-secret"
+export TEA_OAUTH_AUTH_ENDPOINT="https://api.login.yahoo.com/oauth2/request_auth"
+export TEA_OAUTH_TOKEN_ENDPOINT="https://api.login.yahoo.com/oauth2/get_token"
+export TEA_OAUTH_SCOPES="mail-w"
+export TEA_SMTP_HOST="smtp.mail.yahoo.com"
+export TEA_IMAP_HOST="imap.mail.yahoo.com"
+docker compose up --build
+```
+
+## Health and Relay Endpoints
+
+- `GET /health` – Returns a comprehensive health snapshot including OAuth state.
+- `GET /oauth/status` – Direct view into the OAuth authentication state.
+- `POST /oauth/refresh` – Attempts a refresh token grant (if configured).
+- `POST /relay/send` – Accepts JSON payload `{sender, recipient, subject, body}` and relays via the configured provider.
+- `GET /relay/messages?limit=10` – Lists the newest inbox messages when enabled.
+
+## Development & Testing
+
+```bash
+pip install -e '.[dev,playwright]'
+pytest --cov=tea
+```
+
+To run the API locally without Docker:
+
+```bash
+export TEA_MOCK_MODE=true
+python -m tea
+```
+
+Mocks keep tests fully offline and deterministic.
+
+## Continuous Integration
+
+GitHub Actions workflow `.github/workflows/ci.yml` runs linting and the test suite on every push and pull request.
+
+## Security Considerations
+
+- Mount a persistent volume to `/secrets` to retain refresh tokens securely.
+- Enable `TEA_NOVNC_PASSWORD_ENABLED=true` and supply `TEA_NOVNC_PASSWORD` to guard the GUI.
+- Toggle `TEA_RELAY_QUERY_ENABLED` and `TEA_RELAY_SEND_ENABLED` to limit unauthenticated access as needed.
+
+## License
+
+MIT

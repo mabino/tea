@@ -1,0 +1,32 @@
+# Python cache and artifacts
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments and dependency folders
+.venv/
+.env
+.env.*
+
+# Test and coverage outputs
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and runtime artifacts
+*.log
+*.pid
+
+# IDE / editor settings
+.vscode/
+.idea/
+
+# Secrets (keep placeholder)
+secrets/*
+!secrets/.gitkeep

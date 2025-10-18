@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  tea:
+    build: .
+    container_name: tiny-email-app
+    ports:
+      - "8000:8000"
+      - "6080:6080"
+    environment:
+      TEA_APP_HOST: 0.0.0.0
+      TEA_APP_PORT: 8000
+      TEA_DEBUG: ${TEA_DEBUG:-false}
+      TEA_DRY_RUN: ${TEA_DRY_RUN:-false}
+      TEA_NOVNC_ENABLED: ${TEA_NOVNC_ENABLED:-true}
+      TEA_NOVNC_PASSWORD_ENABLED: ${TEA_NOVNC_PASSWORD_ENABLED:-false}
+      TEA_NOVNC_PASSWORD: ${TEA_NOVNC_PASSWORD:-}
+      TEA_RELAY_SEND_ENABLED: ${TEA_RELAY_SEND_ENABLED:-true}
+      TEA_RELAY_QUERY_ENABLED: ${TEA_RELAY_QUERY_ENABLED:-false}
+      TEA_MOCK_MODE: ${TEA_MOCK_MODE:-false}
+      TEA_SECRET_STORE_PATH: ${TEA_SECRET_STORE_PATH:-/secrets/tokens.json}
+      TEA_OAUTH_CLIENT_ID: ${TEA_OAUTH_CLIENT_ID:-}
+      TEA_OAUTH_CLIENT_SECRET: ${TEA_OAUTH_CLIENT_SECRET:-}
+      TEA_OAUTH_TENANT: ${TEA_OAUTH_TENANT:-}
+      TEA_OAUTH_SCOPES: ${TEA_OAUTH_SCOPES:-}
+      TEA_OAUTH_AUTH_ENDPOINT: ${TEA_OAUTH_AUTH_ENDPOINT:-}
+      TEA_OAUTH_TOKEN_ENDPOINT: ${TEA_OAUTH_TOKEN_ENDPOINT:-}
+      TEA_OAUTH_REDIRECT_URI: ${TEA_OAUTH_REDIRECT_URI:-}
+      TEA_OAUTH_REFRESH_TOKEN: ${TEA_OAUTH_REFRESH_TOKEN:-}
+      TEA_OAUTH_ACCESS_TOKEN: ${TEA_OAUTH_ACCESS_TOKEN:-}
+      TEA_SMTP_HOST: ${TEA_SMTP_HOST:-smtp.example.com}
+      TEA_SMTP_PORT: ${TEA_SMTP_PORT:-587}
+      TEA_SMTP_USE_TLS: ${TEA_SMTP_USE_TLS:-true}
+      TEA_IMAP_HOST: ${TEA_IMAP_HOST:-imap.example.com}
+      TEA_IMAP_PORT: ${TEA_IMAP_PORT:-993}
+      TEA_IMAP_USE_SSL: ${TEA_IMAP_USE_SSL:-true}
+      TEA_HEALTH_STATUS_CACHE_TTL: ${TEA_HEALTH_STATUS_CACHE_TTL:-30}
+      NOVNC_PORT: ${NOVNC_PORT:-6080}
+    volumes:
+      - type: bind
+        source: ${TEA_SECRET_STORE_MOUNT:-./secrets}
+        target: /secrets
+        read_only: false
+    restart: unless-stopped
