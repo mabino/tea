@@ -89,6 +89,7 @@ class HealthMonitor:
         base_target = self._settings.health_monitor_interval_seconds // severity
         if base_target == 0:
             base_target = self._settings.health_monitor_min_interval_seconds
+        base_target = max(base_target, 1)
         if self._consecutive_unhealthy > 1:
             base_target = max(base_target // 2, self._settings.health_monitor_min_interval_seconds)
         target = max(
