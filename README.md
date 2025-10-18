@@ -164,9 +164,15 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs linting and the test sui
 
 ## Security Considerations
 
-- Mount a persistent volume to `/secrets` to retain refresh tokens securely.
-- Enable `TEA_NOVNC_PASSWORD_ENABLED=true` and supply `TEA_NOVNC_PASSWORD` to guard the GUI.
-- Toggle `TEA_RELAY_QUERY_ENABLED` and `TEA_RELAY_SEND_ENABLED` to limit unauthenticated access as needed.
+Running TEA gives the host environment direct access to OAuth refresh tokens and browser sessions that can fully impersonate the connected mailbox. Operate it with the same care you would a jump-box that holds long-lived credentials.
+
+- Store the `/secrets` mount on encrypted disk, protect the host filesystem permissions, and rotate refresh tokens whenever the container lifecycle changes.
+- Treat the OAuth client registration as a privileged asset. If the client secret leaks, revoke it in the provider portal and generate a replacement before redeploying TEA.
+- Restrict container network exposure. Only publish the FastAPI and noVNC ports to trusted networks and consider reverse proxies that enforce authentication, rate limiting, or IP allow-lists.
+- Enable `TEA_NOVNC_PASSWORD_ENABLED=true` and set `TEA_NOVNC_PASSWORD`. For higher assurance, front noVNC with an identity-aware proxy or VPN so the desktop is never exposed publicly.
+- Toggle `TEA_RELAY_SEND_ENABLED` / `TEA_RELAY_QUERY_ENABLED` to the minimum necessary surface area. In most cases you should disable inbox access unless automated polling is required.
+- Keep dependencies patched. Rebuild the image regularly to pull updated base layers (Python, Chromium, system libraries) and re-run the Playwright installer so the bundled browser stays current.
+- Monitor provider security alerts. OAuth consent screens, scopes, and app registrations can be audited or suspended if unusual traffic is detected; make sure a human reviews provider dashboards periodically.
 
 ## License
 
