@@ -17,8 +17,8 @@ jobs:
 
       - name: Run tests inside container
         run: >-
-          docker run --rm
+          docker run --rm --entrypoint /bin/bash
           -v "$GITHUB_WORKSPACE:/workspace"
           -w /workspace
           -e TEA_MOCK_MODE=true
-          tea-ci bash -lc "pip install -e '.[dev]' && pytest --cov=tea --cov-report=term-missing"
+          tea-ci -lc "pip install -e '.[dev]' && pytest --cov=tea --cov-report=term-missing"
