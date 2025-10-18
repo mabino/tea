@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import structlog
@@ -15,6 +16,7 @@ from fastapi.responses import JSONResponse
 from .config import TeaSettings, get_settings
 from .email_relay import EmailPayload, EmailRelayService, EmailTransport, MessagePreview, RelayResult, SMTPOAuthTransport
 from .health import HealthReporter
+from .health_monitor import HealthMonitor
 from .oauth import OAuthClient
 from .storage import FileTokenStore, MemoryTokenStore, TokenStore
 from .stubs import StubEmailTransport, build_memory_token_store
@@ -78,7 +80,22 @@ def create_app(settings: Optional[TeaSettings] = None) -> FastAPI:
         health_reporter=health_reporter,
     )
 
-    app = FastAPI(title="Tiny Email App", version="0.1.0")
+    health_monitor = HealthMonitor(
+        settings=settings,
+        reporter=health_reporter,
+        oauth_client=container.oauth_client,
+        transport=transport,
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        await app.state.health_monitor.start()
+        try:
+            yield
+        finally:
+            await app.state.health_monitor.stop()
+
+    app = FastAPI(title="Tiny Email App", version="0.1.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -89,6 +106,7 @@ def create_app(settings: Optional[TeaSettings] = None) -> FastAPI:
     )
 
     app.state.container = container
+    app.state.health_monitor = health_monitor
 
     def get_container(request: Request) -> AppContainer:
         return request.app.state.container
