@@ -8,6 +8,7 @@ Tiny Email App (TEA) is a containerised email relay gateway that combines a Fast
 - Unauthenticated relay endpoints for sending and (optionally) listing messages
 - Configurable dry-run mode and rich environment-driven settings
 - Playwright-enabled Chromium runtime exposed through noVNC for remote access
+- Adaptive self-health monitor with automated email notifications
 - File-backed token storage via bind mounts plus offline-friendly mock adapters
 - Comprehensive test suite with GitHub Actions CI workflow
 
@@ -59,11 +60,28 @@ Once running:
 | `TEA_IMAP_PORT` | `993` | IMAP port used for inbox polling. |
 | `TEA_IMAP_USE_SSL` | `true` | Enable SSL/TLS for IMAP connection. |
 | `TEA_HEALTH_STATUS_CACHE_TTL` | `30` | Seconds to cache health snapshots. |
+| `TEA_HEALTH_MONITOR_ENABLED` | `true` | Toggle the recurring self-health job. |
+| `TEA_HEALTH_MONITOR_INTERVAL_SECONDS` | `900` | Base interval for self-health checks. |
+| `TEA_HEALTH_MONITOR_MIN_INTERVAL_SECONDS` | `60` | Minimum interval when issues escalate. |
+| `TEA_HEALTH_MONITOR_MAX_INTERVAL_SECONDS` | `3600` | Maximum interval when the system remains healthy. |
+| `TEA_HEALTH_NOTIFICATION_ENABLED` | `true` | Deliver self-health results over email when configured. |
+| `TEA_HEALTH_NOTIFICATION_SENDER` | _empty_ | Sender address used for self-health notifications. |
+| `TEA_HEALTH_NOTIFICATION_RECIPIENT` | _empty_ | Recipient address for self-health notifications. |
 | `NOVNC_PORT` | `6080` | External port exposed for noVNC websockify. |
 
 ### Chromium and Playwright
 
 The container installs Playwright and Chromium during build time. Additional Playwright runtime flags can be supplied via command arguments when invoking the service, e.g. `docker compose run tea python -m playwright codegen ...`.
+
+## Self-Health Monitor
+
+TEA can continuously evaluate its own health. When `TEA_HEALTH_MONITOR_ENABLED=true` the service schedules a background task that calls the `/health` stack, adapts the cadence based on the results, and emits actionable guidance.
+
+- **Adaptive cadence** – Healthy runs gradually stretch toward `TEA_HEALTH_MONITOR_MAX_INTERVAL_SECONDS`, while authentication or transport problems collapse the delay toward `TEA_HEALTH_MONITOR_MIN_INTERVAL_SECONDS`. Repeated failures tighten the loop still further so urgent issues are surfaced quickly.
+- **Structured logging** – Every self-health run is logged under the `tea.health_monitor` logger with the computed advice and the next scheduled interval.
+- **Email notifications** – When `TEA_HEALTH_NOTIFICATION_ENABLED=true` (default) and both `TEA_HEALTH_NOTIFICATION_SENDER` / `TEA_HEALTH_NOTIFICATION_RECIPIENT` are configured, TEA sends a summary email after each check with recommended next steps. Notifications are skipped gracefully in dry-run mode.
+
+For unattended deployments, route the notification mailbox to your operations queue so token expirations or provider outages are caught before API clients are impacted.
 
 ## Example Provider Configurations
 
@@ -177,3 +195,6 @@ Running TEA gives the host environment direct access to OAuth refresh tokens and
 ## License
 
 MIT
+
+## TODO
+

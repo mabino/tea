@@ -6,7 +6,7 @@ from functools import lru_cache
 from types import MethodType
 from typing import List, Optional
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class TeaSettings(BaseSettings):
@@ -61,6 +61,13 @@ class TeaSettings(BaseSettings):
     imap_use_ssl: bool = Field(default=True, description="Use SSL/TLS for IMAP connections.")
 
     health_status_cache_ttl: int = Field(default=30, description="Seconds to cache expensive health checks.")
+    health_monitor_enabled: bool = Field(default=True, description="Run the recurring self-health monitor.")
+    health_monitor_interval_seconds: int = Field(default=900, description="Base interval between self-health checks in seconds.")
+    health_monitor_min_interval_seconds: int = Field(default=60, description="Minimum interval when an issue is detected.")
+    health_monitor_max_interval_seconds: int = Field(default=3600, description="Maximum interval when the system remains healthy.")
+    health_notification_enabled: bool = Field(default=True, description="Send email notifications for self-health check results.")
+    health_notification_sender: Optional[str] = Field(default=None, description="Sender email address used for self-health notifications.")
+    health_notification_recipient: Optional[str] = Field(default=None, description="Recipient email address for self-health notifications.")
 
     @property
     def noVNC_password_required(self) -> bool:
@@ -77,6 +84,24 @@ class TeaSettings(BaseSettings):
         if value is None:
             return []
         return list(value)
+
+    @model_validator(mode="after")
+    def _validate_health_intervals(self):
+        for field_name in (
+            "health_monitor_interval_seconds",
+            "health_monitor_min_interval_seconds",
+            "health_monitor_max_interval_seconds",
+            "health_status_cache_ttl",
+        ):
+            value = getattr(self, field_name)
+            if value <= 0:
+                raise ValueError(f"{field_name} must be greater than zero")
+
+        if self.health_monitor_min_interval_seconds > self.health_monitor_interval_seconds:
+            raise ValueError("health_monitor_min_interval_seconds cannot exceed health_monitor_interval_seconds")
+        if self.health_monitor_interval_seconds > self.health_monitor_max_interval_seconds:
+            raise ValueError("health_monitor_interval_seconds cannot exceed health_monitor_max_interval_seconds")
+        return self
 
     @staticmethod
     def _install_blank_guard(source):
