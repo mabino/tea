@@ -148,8 +148,10 @@ class HealthMonitor:
                 "health_notification_sent",
                 extra={"accepted": result.accepted, "detail": result.detail},
             )
-        except Exception as exc:  # pragma: no cover - defensive logging
-            _LOGGER.exception("health_notification_failed", extra={"error": str(exc)})
+        except (asyncio.TimeoutError, ConnectionError) as exc:
+            _LOGGER.warning("health_notification_failed", extra={"error": str(exc), "type": type(exc).__name__})
+        except Exception as exc:  # pragma: no cover - unexpected error
+            _LOGGER.exception("health_notification_failed_unexpected", extra={"error": str(exc), "type": type(exc).__name__})
 
     def _has_addresses(self) -> bool:
         return bool(self._settings.health_notification_sender and self._settings.health_notification_recipient)
