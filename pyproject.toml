@@ -8,8 +8,13 @@ version = "0.1.0"
 description = "Tiny Email App (TEA) - a plain email relay gateway with OAuth and browser automation support."
 readme = "README.md"
 authors = [{ name = "Tiny Email App Maintainers" }]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
+    "aiosmtpd>=1.4.5",
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.8",

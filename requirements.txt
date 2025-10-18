@@ -1,0 +1,2 @@
+# Tiny Email App development environment
+-e .[dev]
