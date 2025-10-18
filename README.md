@@ -198,4 +198,3 @@ MIT
 
 ## TODO
 
-- [x] TODO(copilot): preventative-health branch should introduce an optional recurring self-health job, dynamically adjust cadence when issues escalate, log each run, and send actionable email notifications by default.
