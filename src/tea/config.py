@@ -55,6 +55,9 @@ class TeaSettings(BaseSettings):
     smtp_host: Optional[str] = Field(default=None, description="SMTP server hostname.")
     smtp_port: int = Field(default=587, description="SMTP server port.")
     smtp_use_tls: bool = Field(default=True, description="Use TLS/STARTTLS for SMTP connections.")
+    smtp_bridge_enabled: bool = Field(default=False, description="Expose a local SMTP listener that forwards to the relay API.")
+    smtp_bridge_host: str = Field(default="127.0.0.1", description="Hostname for the SMTP bridge listener.")
+    smtp_bridge_port: int = Field(default=2525, description="Port for the SMTP bridge listener.")
 
     imap_host: Optional[str] = Field(default=None, description="IMAP server hostname.")
     imap_port: int = Field(default=993, description="IMAP server port.")

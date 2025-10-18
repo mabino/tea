@@ -7,6 +7,7 @@ Tiny Email App (TEA) is a containerised email relay gateway that combines a Fast
 - OAuth-aware health reporting with browser intervention signalling
 - Unauthenticated relay endpoints for sending and (optionally) listing messages
 - Configurable dry-run mode and rich environment-driven settings
+- Optional SMTP bridge for clients that expect raw SMTP submissions
 - Playwright-enabled Chromium runtime exposed through noVNC for remote access
 - Adaptive self-health monitor with automated email notifications
 - File-backed token storage via bind mounts plus offline-friendly mock adapters
@@ -56,6 +57,9 @@ Once running:
 | `TEA_SMTP_HOST` | `smtp.example.com` | SMTP host used for outbound email. |
 | `TEA_SMTP_PORT` | `587` | SMTP port used for outbound email. |
 | `TEA_SMTP_USE_TLS` | `true` | Enable STARTTLS for SMTP connection. |
+| `TEA_SMTP_BRIDGE_ENABLED` | `false` | Expose a local SMTP listener that forwards traffic into TEA. |
+| `TEA_SMTP_BRIDGE_HOST` | `127.0.0.1` | Hostname bound by the SMTP bridge listener. |
+| `TEA_SMTP_BRIDGE_PORT` | `2525` | Port bound by the SMTP bridge listener. |
 | `TEA_IMAP_HOST` | `imap.example.com` | IMAP host used for inbox polling. |
 | `TEA_IMAP_PORT` | `993` | IMAP port used for inbox polling. |
 | `TEA_IMAP_USE_SSL` | `true` | Enable SSL/TLS for IMAP connection. |
@@ -82,6 +86,38 @@ TEA can continuously evaluate its own health. When `TEA_HEALTH_MONITOR_ENABLED=t
 - **Email notifications** – When `TEA_HEALTH_NOTIFICATION_ENABLED=true` (default) and both `TEA_HEALTH_NOTIFICATION_SENDER` / `TEA_HEALTH_NOTIFICATION_RECIPIENT` are configured, TEA sends a summary email after each check with recommended next steps. Notifications are skipped gracefully in dry-run mode.
 
 For unattended deployments, route the notification mailbox to your operations queue so token expirations or provider outages are caught before API clients are impacted.
+
+## SMTP Bridge
+
+If `TEA_SMTP_BRIDGE_ENABLED=true`, TEA launches a lightweight SMTP listener (default `127.0.0.1:2525`) that forwards inbound mail directly into the same relay logic used by the HTTP API. This is helpful when integrating legacy tooling that can only speak SMTP. For production, run the bridge behind your own TLS terminator or network proxy before exposing it outside the container.
+
+### Quick Examples
+
+#### Local testing
+
+```bash
+export TEA_SMTP_BRIDGE_ENABLED=true
+export TEA_SMTP_BRIDGE_HOST=0.0.0.0
+export TEA_SMTP_BRIDGE_PORT=2525
+python -m tea
+# point your client at localhost:2525 with plain SMTP (TEA still uses OAuth under the hood)
+```
+
+#### Docker Compose override
+
+```yaml
+override.yml:
+services:
+  tea:
+    environment:
+      TEA_SMTP_BRIDGE_ENABLED: "true"
+      TEA_SMTP_BRIDGE_HOST: 0.0.0.0
+      TEA_SMTP_BRIDGE_PORT: 2525
+    ports:
+      - "2525:2525"  # expose the bridge alongside the HTTP API
+```
+
+Launch with `docker compose -f docker-compose.yml -f override.yml up --build` and configure upstream systems to relay through the published port.
 
 ## Example Provider Configurations
 
