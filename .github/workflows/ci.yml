@@ -12,15 +12,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Build test image
+        run: docker build -t tea-ci .
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e '.[dev]'
-
-      - name: Run tests
-        run: pytest --cov=tea --cov-report=term-missing
+      - name: Run tests inside container
+        run: >-
+          docker run --rm --entrypoint bash -w /app
+          -e TEA_MOCK_MODE=true
+          tea-ci -lc "pip install -e '.[dev]' && pytest --cov=tea --cov-report=term-missing"
