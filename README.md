@@ -1,6 +1,6 @@
 # Tiny Email App (TEA)
 
-Tiny Email App (TEA) is a containerised email relay gateway that combines a FastAPI service, Playwright-ready Chromium runtime, and a noVNC-accessible desktop session. TEA makes it easy to broker OAuth-authenticated outbound and inbound email flows for programmatic clients while still providing browser-based remediation when interactive logins are required.
+Tiny Email App (TEA) is a containerized email relay gateway that combines a FastAPI service, Playwright-ready Chromium runtime, and a noVNC-accessible desktop session. TEA makes it easy to broker OAuth-authenticated outbound and inbound email flows for programmatic clients while still providing browser-based remediation when interactive logins are required.
 
 ## Features
 
